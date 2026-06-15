@@ -72,11 +72,11 @@ grid-stability-analyzer/
 
 ### Cycle Detection
 
-![Cycle Detection](screenshots/cycle-detection.png)
+![Cycle Detection](screenshots/detected_cycle.png)
 
 ### MST Analysis
 
-![MST Analysis](screenshots/mst-analysis.png)
+![MST Analysis](screenshots/mst_analysis.png)
 
 ## Author
 
