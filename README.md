@@ -64,6 +64,20 @@ grid-stability-analyzer/
 * Export analysis reports
 * Dark mode interface
 
+## Screenshots
+
+### Main Interface
+
+![Main Interface](screenshots/home.png)
+
+### Cycle Detection
+
+![Cycle Detection](screenshots/cycle-detection.png)
+
+### MST Analysis
+
+![MST Analysis](screenshots/mst-analysis.png)
+
 ## Author
 
 Habeebulla Y
