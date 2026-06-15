@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Electric Grid Cycle Detection & Stability Analysis</title>
+    <meta name="description" content="Interactive visualization of cycle detection algorithms (DFS, BFS, Union-Find, Kruskal's MST) for electric power grid stability analysis. ADA Experiential Learning Phase 2.">
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar glass-panel">
+            <header>
+                <h1>Grid Stability Analyzer <i class="fas fa-bolt" style="color: #00f0ff;"></i></h1>
+            </header>
+
+            <section class="controls">
+                <h3><i class="fas fa-tools"></i> Network Builder</h3>
+                <div class="demo-group">
+                    <button id="btn-demo-1" class="demo-btn" title="Tree structure (no cycles)">Stable</button>
+                    <button id="btn-demo-2" class="demo-btn" title="Square loop (1 cycle)">Unstable</button>
+                    <button id="btn-demo-3" class="demo-btn" title="Hub with multiple cycles">Complex</button>
+                    <button id="btn-demo-random" class="demo-btn demo-btn-accent" title="Random graph"><i class="fas fa-dice"></i> Random</button>
+                </div>
+                <div class="tool-group">
+                    <button id="btn-add-node" class="tool-btn active" title="Click on canvas to add substations">
+                        <i class="fas fa-dot-circle"></i> Add
+                    </button>
+                    <button id="btn-add-edge" class="tool-btn" title="Drag between substations to add transmission lines">
+                        <i class="fas fa-project-diagram"></i> Connect
+                    </button>
+                    <button id="btn-erase" class="tool-btn" title="Click on node or line to erase">
+                        <i class="fas fa-eraser"></i> Erase
+                    </button>
+                </div>
+                <button id="btn-clear" class="danger-btn">
+                    <i class="fas fa-trash-alt"></i> Clear Grid
+                </button>
+            </section>
+
+            <section class="analysis-controls">
+                <h3><i class="fas fa-microchip"></i> Cycle Detection Algorithms</h3>
+                <div class="speed-control">
+                    <label for="speed-slider">Animation Speed:</label>
+                    <input type="range" id="speed-slider" min="1" max="100" value="50">
+                </div>
+                <button id="btn-dfs" class="algo-btn primary">
+                    <i class="fas fa-layer-group"></i> Run DFS Algorithm
+                </button>
+                <button id="btn-bfs" class="algo-btn bfs-btn">
+                    <i class="fas fa-water"></i> Run BFS Algorithm
+                </button>
+                <button id="btn-uf" class="algo-btn secondary">
+                    <i class="fas fa-object-group"></i> Run Union-Find Algorithm
+                </button>
+                <button id="btn-mst" class="algo-btn mst-btn">
+                    <i class="fas fa-sitemap"></i> Run MST Analysis (Kruskal's)
+                </button>
+                <div class="btn-row">
+                    <button id="btn-compare" class="algo-btn compare-btn">
+                        <i class="fas fa-balance-scale"></i> Compare All
+                    </button>
+                    <button id="btn-reset-analysis" class="algo-btn neutral-btn">
+                        <i class="fas fa-undo"></i> Reset
+                    </button>
+                </div>
+            </section>
+
+            <section class="results-panel">
+                <h3><i class="fas fa-chart-line"></i> Status & Results</h3>
+                <div id="status-indicator" class="status-box neutral">
+                    Awaiting Analysis
+                </div>
+                <div id="comparison-table-container" class="comparison-container" style="display:none;"></div>
+                <div id="log-output" class="log-box"></div>
+            </section>
+
+            <section class="test-section">
+                <button id="btn-test-suite" class="algo-btn test-btn">
+                    <i class="fas fa-vial"></i> Run Automated Test Suite
+                </button>
+                <div id="test-results-container" style="display:none;"></div>
+            </section>
+
+            <button id="btn-show-docs" class="docs-btn">
+                <i class="fas fa-file-alt"></i> View Report & Complexity Analysis
+            </button>
+        </aside>
+
+        <main class="canvas-container">
+            <div class="canvas-overlay">
+                <h2>Network Map</h2>
+            </div>
+            <canvas id="grid-canvas"></canvas>
+        </main>
+    </div>
+
+    <!-- Documentation Modal -->
+    <div id="docs-modal" class="modal">
+        <div class="modal-content glass-panel">
+            <span class="close-btn">&times;</span>
+            <h2>Project Documentation & Analysis</h2>
+
+            <!-- Tab Navigation -->
+            <div class="tab-nav">
+                <button class="tab-btn active" data-tab="tab-problem">Problem</button>
+                <button class="tab-btn" data-tab="tab-dfs">DFS</button>
+                <button class="tab-btn" data-tab="tab-bfs">BFS</button>
+                <button class="tab-btn" data-tab="tab-uf">Union-Find</button>
+                <button class="tab-btn" data-tab="tab-mst">MST</button>
+                <button class="tab-btn" data-tab="tab-compare">Comparison</button>
+                <button class="tab-btn" data-tab="tab-conclusion">Conclusion</button>
+            </div>
+
+            <!-- Tab: Problem Statement -->
+            <div class="tab-content active" id="tab-problem">
+                <div class="doc-section">
+                    <h3>Problem Statement</h3>
+                    <p><strong>Scenario:</strong> An electric power grid connects multiple substations through transmission lines. To ensure safe and efficient operation, the grid must avoid unintended cyclic dependencies that may lead to power instability, redundancy, or fault propagation (e.g., circulating currents or overload loops).</p>
+                    <p><strong>Task:</strong> Detect whether the given power grid network contains cycles and ensure that the network structure remains stable. If cycles exist, identify and analyse them.</p>
+                </div>
+                <div class="doc-section">
+                    <h3>Graph Representation</h3>
+                    <p>The power grid is modelled as an <strong>undirected graph G = (V, E)</strong> where:</p>
+                    <ul>
+                        <li><strong>V</strong> = Set of vertices (substations / power nodes)</li>
+                        <li><strong>E</strong> = Set of edges (transmission lines connecting substations)</li>
+                    </ul>
+                    <p><strong>Data Structure Used:</strong> Adjacency List — an array of lists where <code>adj[u]</code> contains all vertices adjacent to <code>u</code>. This is optimal for sparse graphs (typical of power grids) with <strong>O(V + E)</strong> space.</p>
+                </div>
+                <div class="doc-section">
+                    <h3>Techniques Explored</h3>
+                    <ol>
+                        <li><strong>DFS (Depth-First Search)</strong> — Graph Traversal for cycle detection via back-edges</li>
+                        <li><strong>BFS (Breadth-First Search)</strong> — Level-order traversal alternative for cycle detection</li>
+                        <li><strong>Union-Find (Disjoint Set Union)</strong> — Incremental edge-based cycle detection</li>
+                        <li><strong>Kruskal's MST</strong> — Minimum Spanning Tree perspective for cycle elimination</li>
+                    </ol>
+                </div>
+            </div>
+
+            <!-- Tab: DFS -->
+            <div class="tab-content" id="tab-dfs">
+                <div class="doc-section">
+                    <h3>Algorithm 1: Depth-First Search (DFS)</h3>
+                    <p><strong>Approach:</strong> In an undirected graph, a cycle exists if during DFS traversal we encounter a visited node that is <em>not</em> the parent of the current node (a "back-edge"). DFS explores each path to its maximum depth before backtracking.</p>
+
+                    <div class="pseudocode-box">
+                        <h4>Pseudocode</h4>
+<pre>
+DFS-CYCLE-DETECT(G):
+  for each vertex v ∈ V:
+    visited[v] ← false
+    parent[v] ← NIL
+  for each vertex v ∈ V:
+    if not visited[v]:
+      if DFS-VISIT(v, NIL) == true:
+        return "Cycle Detected"
+  return "No Cycle"
+
+DFS-VISIT(v, p):
+  visited[v] ← true
+  parent[v] ← p
+  for each neighbor u ∈ adj[v]:
+    if not visited[u]:
+      if DFS-VISIT(u, v) == true:
+        return true
+    else if u ≠ p:
+      return true    // Back-edge found → cycle
+  return false
+</pre>
+                    </div>
+
+                    <h4>Time Complexity Analysis</h4>
+                    <div class="complexity-box">
+                        <div><strong>Best Case:</strong> <span class="highlight">O(V + E)</span></div>
+                        <div><strong>Average Case:</strong> <span class="highlight">O(V + E)</span></div>
+                        <div><strong>Worst Case:</strong> <span class="highlight">O(V + E)</span></div>
+                        <div><strong>Space Complexity:</strong> <span class="highlight">O(V)</span></div>
+                    </div>
+
+                    <div class="proof-box">
+                        <h4>Mathematical Proof — Time Complexity</h4>
+                        <p><strong>Claim:</strong> DFS cycle detection on an undirected graph G = (V, E) runs in Θ(V + E) time.</p>
+                        <p><strong>Proof:</strong></p>
+                        <p>Let |V| = n and |E| = m.</p>
+                        <ol>
+                            <li><strong>Vertex processing:</strong> Each vertex v ∈ V is marked visited exactly once. The initialization loop runs in O(n). Therefore, total vertex work = O(n).</li>
+                            <li><strong>Edge processing:</strong> For each vertex v, we iterate over adj[v]. Since the graph is undirected, each edge (u, v) appears in both adj[u] and adj[v]. Thus: <br><code>Σ |adj[v]| = 2m</code><br> Total edge examinations = O(2m) = O(m).</li>
+                            <li><strong>Combining:</strong> Total time T(n, m) = O(n) + O(m) = <strong>O(V + E)</strong></li>
+                        </ol>
+                        <p><strong>Best Case:</strong> Even in the best case, DFS must visit all vertices to confirm no cycle exists (graph could be disconnected). If a cycle exists at the very first back-edge explored, the algorithm still performed Θ(k) work where k ≤ V + E. However, asymptotically, T = Θ(V + E) because we must initialise all vertices.</p>
+                        <p><strong>Worst Case:</strong> Occurs when the graph is a tree (no cycles) — DFS explores every vertex and every edge before concluding. T = Θ(V + E).</p>
+                        <p><strong>Space Proof:</strong> The recursion stack depth is at most O(V) (in a path graph). The visited[] array is O(V). Total space = O(V). ∎</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: BFS -->
+            <div class="tab-content" id="tab-bfs">
+                <div class="doc-section">
+                    <h3>Algorithm 2: Breadth-First Search (BFS)</h3>
+                    <p><strong>Approach:</strong> BFS performs level-order traversal using a queue. For each dequeued vertex, if a neighbor has already been visited and is <em>not</em> the parent, a cycle is detected. BFS is an alternative to DFS that explores all neighbors at the current depth before moving deeper.</p>
+
+                    <div class="pseudocode-box">
+                        <h4>Pseudocode</h4>
+<pre>
+BFS-CYCLE-DETECT(G):
+  for each vertex v ∈ V:
+    visited[v] ← false
+    parent[v] ← NIL
+  for each vertex v ∈ V:
+    if not visited[v]:
+      Q ← empty queue
+      visited[v] ← true
+      ENQUEUE(Q, v)
+      while Q is not empty:
+        u ← DEQUEUE(Q)
+        for each neighbor w ∈ adj[u]:
+          if not visited[w]:
+            visited[w] ← true
+            parent[w] ← u
+            ENQUEUE(Q, w)
+          else if w ≠ parent[u]:
+            return "Cycle Detected"
+  return "No Cycle"
+</pre>
+                    </div>
+
+                    <h4>Time Complexity Analysis</h4>
+                    <div class="complexity-box">
+                        <div><strong>Best Case:</strong> <span class="highlight">O(V + E)</span></div>
+                        <div><strong>Average Case:</strong> <span class="highlight">O(V + E)</span></div>
+                        <div><strong>Worst Case:</strong> <span class="highlight">O(V + E)</span></div>
+                        <div><strong>Space Complexity:</strong> <span class="highlight">O(V)</span></div>
+                    </div>
+
+                    <div class="proof-box">
+                        <h4>Mathematical Proof — Time Complexity</h4>
+                        <p><strong>Claim:</strong> BFS cycle detection on G = (V, E) runs in Θ(V + E) time.</p>
+                        <p><strong>Proof:</strong></p>
+                        <p>Let |V| = n, |E| = m.</p>
+                        <ol>
+                            <li><strong>Enqueue/Dequeue:</strong> Each vertex is enqueued and dequeued exactly once → O(n) total queue operations.</li>
+                            <li><strong>Edge scanning:</strong> For each dequeued vertex u, we scan adj[u]. Summing over all vertices: <code>Σ |adj[u]| = 2m</code> → O(m) total edge scans.</li>
+                            <li><strong>Total:</strong> T(n, m) = O(n) + O(m) = <strong>O(V + E)</strong></li>
+                        </ol>
+                        <p><strong>Best Case:</strong> Same as DFS — initialisation dominates. Even if a cycle is found early at some edge, the initialisation cost is O(V). Asymptotically Θ(V + E).</p>
+                        <p><strong>Worst Case:</strong> Acyclic graph (tree) — BFS visits all V vertices and examines all E edges. T = Θ(V + E).</p>
+                        <p><strong>Space Proof:</strong> The queue holds at most O(V) vertices (in a star graph, all leaves are enqueued). visited[] and parent[] are O(V) each. Total space = O(V). ∎</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: Union-Find -->
+            <div class="tab-content" id="tab-uf">
+                <div class="doc-section">
+                    <h3>Algorithm 3: Union-Find (Disjoint Set Union)</h3>
+                    <p><strong>Approach:</strong> Process edges one by one. For each edge (u, v), perform <code>FIND(u)</code> and <code>FIND(v)</code>. If both have the same root, they are already connected — adding this edge creates a cycle. Otherwise, <code>UNION</code> their sets. Path compression and union by rank optimise operations to near-constant time.</p>
+
+                    <div class="pseudocode-box">
+                        <h4>Pseudocode</h4>
+<pre>
+MAKE-SET(x):
+  parent[x] ← x
+  rank[x] ← 0
+
+FIND(x):                     // with path compression
+  if parent[x] ≠ x:
+    parent[x] ← FIND(parent[x])
+  return parent[x]
+
+UNION(x, y):                 // by rank
+  rootX ← FIND(x)
+  rootY ← FIND(y)
+  if rootX == rootY: return false   // cycle!
+  if rank[rootX] < rank[rootY]:
+    parent[rootX] ← rootY
+  else if rank[rootX] > rank[rootY]:
+    parent[rootY] ← rootX
+  else:
+    parent[rootY] ← rootX
+    rank[rootX] ← rank[rootX] + 1
+  return true
+
+UF-CYCLE-DETECT(G):
+  for each vertex v ∈ V: MAKE-SET(v)
+  for each edge (u, v) ∈ E:
+    if UNION(u, v) == false:
+      return "Cycle Detected"
+  return "No Cycle"
+</pre>
+                    </div>
+
+                    <h4>Time Complexity Analysis</h4>
+                    <div class="complexity-box">
+                        <div><strong>Best Case:</strong> <span class="highlight">O(V + E)</span></div>
+                        <div><strong>Average Case:</strong> <span class="highlight">O(E &middot; &alpha;(V))</span></div>
+                        <div><strong>Worst Case:</strong> <span class="highlight">O(E &middot; &alpha;(V))</span></div>
+                        <div><strong>Space Complexity:</strong> <span class="highlight">O(V)</span></div>
+                    </div>
+
+                    <div class="proof-box">
+                        <h4>Mathematical Proof — Time Complexity</h4>
+                        <p><strong>Claim:</strong> Union-Find with path compression and union by rank processes E edges in O(E · α(V)) time.</p>
+                        <p><strong>Proof:</strong></p>
+                        <ol>
+                            <li><strong>Initialization:</strong> MAKE-SET is called V times → O(V).</li>
+                            <li><strong>Per-edge operations:</strong> For each of the E edges, we call FIND twice and UNION once.</li>
+                            <li><strong>Amortised analysis (Tarjan, 1975):</strong> With <em>path compression</em> and <em>union by rank</em>, a sequence of m FIND/UNION operations on n elements takes <strong>O(m · α(n))</strong> amortised time, where α is the <strong>Inverse Ackermann function</strong>.</li>
+                            <li><strong>Inverse Ackermann function:</strong> α(n) ≤ 4 for all practical values of n (up to 2<sup>65536</sup>). This is "almost constant" but theoretically not O(1).</li>
+                            <li><strong>Total:</strong> T = O(V) + O(E · α(V)) = <strong>O(E · α(V))</strong></li>
+                        </ol>
+                        <p><strong>Best Case:</strong> If a cycle is detected at the very first edge (degenerate case), only O(V) + O(1) work is done → O(V + E) (since V ≤ E + 1 for connected graphs, and we still initialise all vertices).</p>
+                        <p><strong>Worst Case:</strong> All edges processed, no early termination. The amortised bound O(E · α(V)) holds from Tarjan's proof via the potential function method. ∎</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: MST (Kruskal's) -->
+            <div class="tab-content" id="tab-mst">
+                <div class="doc-section">
+                    <h3>Algorithm 4: Kruskal's MST (Cycle Elimination Perspective)</h3>
+                    <p><strong>Approach:</strong> Kruskal's algorithm builds a Minimum Spanning Tree by processing edges in order. For each edge, if adding it creates a cycle (detected via Union-Find), the edge is <em>rejected</em>. Otherwise, it is included in the MST. The rejected edges are exactly the cycle-causing redundant connections.</p>
+                    <p><strong>Power Grid Application:</strong> The MST represents the <em>minimum set of transmission lines</em> needed to connect all substations without any cycles — the most efficient and stable grid configuration.</p>
+
+                    <div class="pseudocode-box">
+                        <h4>Pseudocode</h4>
+<pre>
+KRUSKAL-MST(G):
+  MST ← ∅
+  REJECTED ← ∅
+  Sort edges E by weight (or use natural order for unweighted)
+  for each vertex v ∈ V: MAKE-SET(v)
+  for each edge (u, v) ∈ E:
+    if FIND(u) ≠ FIND(v):
+      MST ← MST ∪ {(u, v)}
+      UNION(u, v)
+    else:
+      REJECTED ← REJECTED ∪ {(u, v)}    // Cycle edge!
+  return MST, REJECTED
+</pre>
+                    </div>
+
+                    <h4>Time Complexity Analysis</h4>
+                    <div class="complexity-box">
+                        <div><strong>Best Case:</strong> <span class="highlight">O(E log E)</span></div>
+                        <div><strong>Average Case:</strong> <span class="highlight">O(E log E)</span></div>
+                        <div><strong>Worst Case:</strong> <span class="highlight">O(E log E)</span></div>
+                        <div><strong>Space Complexity:</strong> <span class="highlight">O(V + E)</span></div>
+                    </div>
+
+                    <div class="proof-box">
+                        <h4>Mathematical Proof — Time Complexity</h4>
+                        <p><strong>Claim:</strong> Kruskal's algorithm runs in O(E log E) time.</p>
+                        <p><strong>Proof:</strong></p>
+                        <ol>
+                            <li><strong>Sorting:</strong> Sorting E edges takes O(E log E) using comparison-based sort. Since E ≤ V², we have log E ≤ 2 log V, so O(E log E) = O(E log V).</li>
+                            <li><strong>Union-Find operations:</strong> E edges × O(α(V)) per operation = O(E · α(V)).</li>
+                            <li><strong>Dominance:</strong> Since α(V) ≤ log V ≤ log E for connected graphs, the sorting step dominates.</li>
+                            <li><strong>Total:</strong> T = O(E log E) + O(E · α(V)) = <strong>O(E log E)</strong></li>
+                        </ol>
+                        <p><strong>Note for unweighted graphs:</strong> Since our power grid has no edge weights, the sorting step can be skipped (edges processed in insertion order), reducing the effective time to O(E · α(V)). We implement both the general algorithm and the optimised unweighted version.</p>
+                        <p><strong>Space:</strong> O(V) for Union-Find + O(E) for storing MST and rejected edges = O(V + E). ∎</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: Comparison -->
+            <div class="tab-content" id="tab-compare">
+                <div class="doc-section">
+                    <h3>Algorithm Comparison</h3>
+                    <table class="comparison-table-full">
+                        <thead>
+                            <tr>
+                                <th>Criteria</th>
+                                <th>DFS</th>
+                                <th>BFS</th>
+                                <th>Union-Find</th>
+                                <th>Kruskal's MST</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>Technique</strong></td>
+                                <td>Graph Traversal</td>
+                                <td>Graph Traversal</td>
+                                <td>Disjoint Set</td>
+                                <td>Greedy + DSU</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Data Structure</strong></td>
+                                <td>Stack (recursion)</td>
+                                <td>Queue</td>
+                                <td>Parent/Rank arrays</td>
+                                <td>Sorted edges + DSU</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Time (Best)</strong></td>
+                                <td>O(V + E)</td>
+                                <td>O(V + E)</td>
+                                <td>O(V + E)</td>
+                                <td>O(E log E)</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Time (Average)</strong></td>
+                                <td>O(V + E)</td>
+                                <td>O(V + E)</td>
+                                <td>O(E α(V))</td>
+                                <td>O(E log E)</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Time (Worst)</strong></td>
+                                <td>O(V + E)</td>
+                                <td>O(V + E)</td>
+                                <td>O(E α(V))</td>
+                                <td>O(E log E)</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Space</strong></td>
+                                <td>O(V)</td>
+                                <td>O(V)</td>
+                                <td>O(V)</td>
+                                <td>O(V + E)</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Cycle Path</strong></td>
+                                <td>✅ Full path</td>
+                                <td>✅ Full path</td>
+                                <td>❌ Only edge</td>
+                                <td>✅ All redundant edges</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Dynamic Edges</strong></td>
+                                <td>❌ Full re-run</td>
+                                <td>❌ Full re-run</td>
+                                <td>✅ Incremental</td>
+                                <td>✅ Incremental</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Disconnected</strong></td>
+                                <td>✅ Handles</td>
+                                <td>✅ Handles</td>
+                                <td>✅ Handles</td>
+                                <td>✅ Forest</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Tab: Conclusion -->
+            <div class="tab-content" id="tab-conclusion">
+                <div class="doc-section">
+                    <h3>Justification & Conclusion</h3>
+
+                    <div class="proof-box">
+                        <h4>Why Union-Find is Optimal for Dynamic Power Grids</h4>
+                        <p>In a real-world power grid, transmission lines are added/removed dynamically. We need to verify stability (no cycles) after <em>each</em> modification. Consider a sequence of k edge insertions:</p>
+                        <ul>
+                            <li><strong>DFS/BFS approach:</strong> Each insertion requires a full re-traversal → O(k × (V + E)) total.</li>
+                            <li><strong>Union-Find approach:</strong> Each insertion requires only FIND + UNION → O(k × α(V)) ≈ O(k) total.</li>
+                        </ul>
+                        <p><strong>Speedup factor:</strong> For a grid with V = 1000 substations and E = 5000 lines, and k = 100 dynamic updates:</p>
+                        <ul>
+                            <li>DFS: 100 × 6000 = 600,000 operations</li>
+                            <li>Union-Find: 100 × 4 = 400 operations (α(1000) ≈ 4)</li>
+                            <li><strong>Union-Find is ~1500× faster</strong> for dynamic updates.</li>
+                        </ul>
+                    </div>
+
+                    <div class="proof-box">
+                        <h4>When to Use Each Algorithm</h4>
+                        <table class="comparison-table-full">
+                            <thead>
+                                <tr><th>Scenario</th><th>Best Algorithm</th><th>Reason</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Static graph, need cycle <em>path</em></td>
+                                    <td><strong>DFS</strong></td>
+                                    <td>Naturally traces the cycle path via parent pointers</td>
+                                </tr>
+                                <tr>
+                                    <td>Static graph, need shortest cycle</td>
+                                    <td><strong>BFS</strong></td>
+                                    <td>BFS explores level-by-level, finds shortest cycle first</td>
+                                </tr>
+                                <tr>
+                                    <td>Dynamic edges, only detection</td>
+                                    <td><strong>Union-Find</strong></td>
+                                    <td>O(α(V)) per edge — near-instant detection</td>
+                                </tr>
+                                <tr>
+                                    <td>Find minimum stable grid</td>
+                                    <td><strong>Kruskal's MST</strong></td>
+                                    <td>Identifies all redundant edges to remove</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="proof-box">
+                        <h4>Final Verdict</h4>
+                        <p>For the electric grid stability problem, <strong>Union-Find (Disjoint Set Union)</strong> is the most suitable algorithm because:</p>
+                        <ol>
+                            <li>Power grids are <em>dynamic</em> — lines are added and removed frequently.</li>
+                            <li>The O(α(V)) amortised cost per operation is practically O(1).</li>
+                            <li>It naturally supports incremental updates without re-processing the entire graph.</li>
+                            <li>Combined with Kruskal's MST, it can also identify the <em>optimal</em> set of connections.</li>
+                        </ol>
+                        <p>However, DFS remains valuable for <strong>debugging</strong> (it identifies the exact cycle path), and BFS is useful when the <strong>shortest cycle</strong> is needed for fault isolation.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
